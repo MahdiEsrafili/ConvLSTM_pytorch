@@ -4,7 +4,7 @@ import torch
 
 class ConvLSTMCell(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, kernel_size, bias):
+    def __init__(self, input_dim, hidden_dim, kernel_size, bias, img_size):
         """
         Initialize ConvLSTM cell.
 
@@ -29,20 +29,26 @@ class ConvLSTMCell(nn.Module):
         self.padding = kernel_size[0] // 2, kernel_size[1] // 2
         self.bias = bias
 
-        self.conv = nn.Conv2d(in_channels=self.input_dim + self.hidden_dim*2,
+        self.conv = nn.Conv2d(in_channels=self.input_dim + self.hidden_dim,
                               out_channels=4 * self.hidden_dim,
                               kernel_size=self.kernel_size,
                               padding=self.padding,
                               bias=self.bias)
-
+        
+        self.Wci = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
+        self.Wcf = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
+        self.Wco = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
+        
     def forward(self, input_tensor, cur_state):
-        h_cur, c_cur = cur_state
-
-        combined = torch.cat([input_tensor, h_cur, c_cur], dim=1)  # concatenate along channel axis
+        h_cur, c_cur = cur_state # c_cur.shape = (1, hidden_dim, h,w)
+        combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
 
         combined_conv = self.conv(combined)
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
-        i = torch.sigmoid(cc_i)
+        cc_i = cc_i + self.Wci*c_cur
+        cc_f = cc_f + self.Wcf*c_cur
+        cc_o = cc_o + self.Wco*c_cur
+        i = torch.sigmoid(cc_i) # shape = c_cur.shape
         f = torch.sigmoid(cc_f)
         o = torch.sigmoid(cc_o)
         g = torch.tanh(cc_g)
@@ -51,12 +57,11 @@ class ConvLSTMCell(nn.Module):
         h_next = o * torch.tanh(c_next)
 
         return h_next, c_next
-
+    
     def init_hidden(self, batch_size, image_size):
         height, width = image_size
         return (torch.zeros(batch_size, self.hidden_dim, height, width, device=self.conv.weight.device),
                 torch.zeros(batch_size, self.hidden_dim, height, width, device=self.conv.weight.device))
-
 
 class ConvLSTM(nn.Module):
 
@@ -86,7 +91,7 @@ class ConvLSTM(nn.Module):
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
 
-    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers,
+    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers, img_size,
                  batch_first=False, bias=True, return_all_layers=False):
         super(ConvLSTM, self).__init__()
 
@@ -113,7 +118,8 @@ class ConvLSTM(nn.Module):
             cell_list.append(ConvLSTMCell(input_dim=cur_input_dim,
                                           hidden_dim=self.hidden_dim[i],
                                           kernel_size=self.kernel_size[i],
-                                          bias=self.bias))
+                                          bias=self.bias,
+                                          img_size = img_size))
 
         self.cell_list = nn.ModuleList(cell_list)
 
