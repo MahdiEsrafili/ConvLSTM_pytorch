@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-
+import math
 
 class ConvLSTMCell(nn.Module):
 
@@ -38,7 +38,13 @@ class ConvLSTMCell(nn.Module):
         self.Wci = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
         self.Wcf = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
         self.Wco = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
+        self.init_weights()
         
+    def init_weights(self):
+        stdv = 1.0 / math.sqrt(self.hidden_dim)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+
     def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state # c_cur.shape = (1, hidden_dim, h,w)
         combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
