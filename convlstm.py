@@ -176,7 +176,7 @@ class ConvLSTM(nn.Module):
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
             # do attention here
-            attention_out = self.bmm5d(layer_output, self.attention).sum(dim=0)
+            attention_out = self.bmm5d(layer_output, self.attention).sum(dim=1)
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
