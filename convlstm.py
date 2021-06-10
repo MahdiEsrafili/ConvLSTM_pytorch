@@ -97,7 +97,7 @@ class ConvLSTM(nn.Module):
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
 
-    def __init__(self, input_dim, hidden_dim, kernel_size, num_layers, img_size,
+    def __init__(self, input_dim, seq_len, hidden_dim, kernel_size, num_layers, img_size,
                  batch_first=False, bias=True, return_all_layers=False):
         super(ConvLSTM, self).__init__()
 
@@ -110,13 +110,14 @@ class ConvLSTM(nn.Module):
             raise ValueError('Inconsistent list length.')
 
         self.input_dim = input_dim
+        self.seq_len = seq_len
         self.hidden_dim = hidden_dim
         self.kernel_size = kernel_size
         self.num_layers = num_layers
         self.batch_first = batch_first
         self.bias = bias
         self.return_all_layers = return_all_layers
-
+        self.attention = nn.Parameter(torch.Tensor(self.seq_len, *hidden_dim, img_size, img_size))
         cell_list = []
         for i in range(0, self.num_layers):
             cur_input_dim = self.input_dim if i == 0 else self.hidden_dim[i - 1]
@@ -171,10 +172,11 @@ class ConvLSTM(nn.Module):
                 h, c = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, t, :, :, :],
                                                  cur_state=[h, c])
                 output_inner.append(h)
-
+            
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
-
+            # do attention here
+            attention_out = self.bmm5d(layer_output, self.attention).sum(dim=0)
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
@@ -182,8 +184,14 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return layer_output_list, last_state_list
-
+        return layer_output_list, last_state_list, attention_out
+    @staticmethod
+    def bmm5d(main, multiplier):
+        out = torch.zeros_like(main)
+        for l in range(main.shape[0]):
+            out[l] = main[l]*multiplier
+        return out
+        
     def _init_hidden(self, batch_size, image_size):
         init_states = []
         for i in range(self.num_layers):
