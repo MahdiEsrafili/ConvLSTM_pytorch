@@ -96,7 +96,7 @@ class ConvLSTM(nn.Module):
         >> _, last_states = convlstm(x)
         >> h = last_states[0][0]  # 0 for layer index, 0 for h index
     """
-
+    
     def __init__(self, input_dim, seq_len, hidden_dim, kernel_size, num_layers, img_size,
                  batch_first=False, bias=True, return_all_layers=False):
         super(ConvLSTM, self).__init__()
@@ -129,7 +129,12 @@ class ConvLSTM(nn.Module):
                                           img_size = img_size))
 
         self.cell_list = nn.ModuleList(cell_list)
-
+        self.init_weights()
+        
+    def init_weights(self):
+        stdv = 1.0 / math.sqrt(self.hidden_dim)
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
     def forward(self, input_tensor, hidden_state=None):
         """
 
