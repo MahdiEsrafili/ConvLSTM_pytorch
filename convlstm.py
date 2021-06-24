@@ -132,10 +132,10 @@ class ConvLSTM(nn.Module):
         self.init_weights()
         
     def init_weights(self):
-        stdv = 1.0 / math.sqrt(self.hidden_dim)
+        stdv = 1.0 / math.sqrt(self.hidden_dim[0])
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
-    def forward(self, input_tensor, hidden_state=None):
+    def forward(self, input_tensor, hidden_state=None, attention_in=None):
         """
 
         Parameters
@@ -149,6 +149,9 @@ class ConvLSTM(nn.Module):
         -------
         last_state_list, layer_output
         """
+        attention = self.attention
+        if attention_in is not None:
+            attention = attention*attention_in
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
@@ -181,7 +184,7 @@ class ConvLSTM(nn.Module):
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
             # do attention here
-            attention_out = self.bmm5d(layer_output, self.attention).sum(dim=1)
+            attention_out = self.bmm5d(layer_output, attention).sum(dim=1)
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
