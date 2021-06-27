@@ -118,6 +118,7 @@ class ConvLSTM(nn.Module):
         self.bias = bias
         self.return_all_layers = return_all_layers
         self.attention = nn.Parameter(torch.Tensor(self.seq_len, *hidden_dim, img_size, img_size))
+        print(f'att creation: {self.attention.shape}')
         cell_list = []
         for i in range(0, self.num_layers):
             cur_input_dim = self.input_dim if i == 0 else self.hidden_dim[i - 1]
@@ -150,8 +151,9 @@ class ConvLSTM(nn.Module):
         last_state_list, layer_output
         """
         attention = self.attention
+        print(f'primary att: {attention.shape}')
         if attention_in is not None:
-            attention = attention*attention_in
+            attention = attention * attention_in
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
@@ -192,7 +194,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return layer_output_list, last_state_list, attention_out
+        return layer_output_list, last_state_list, attention_out, attention
     @staticmethod
     def bmm5d(main, multiplier):
         out = torch.zeros_like(main)
