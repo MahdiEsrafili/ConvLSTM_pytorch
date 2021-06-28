@@ -118,6 +118,7 @@ class ConvLSTM(nn.Module):
         self.bias = bias
         self.return_all_layers = return_all_layers
         self.attention = nn.Parameter(torch.Tensor(self.seq_len, *hidden_dim, img_size, img_size))
+        self.att_ac = nn.Sigmoid()
         cell_list = []
         for i in range(0, self.num_layers):
             cur_input_dim = self.input_dim if i == 0 else self.hidden_dim[i - 1]
@@ -152,6 +153,7 @@ class ConvLSTM(nn.Module):
         attention = self.attention
         if attention_in is not None:
             attention = attention * attention_in
+            attention = self.att_ac(attention)
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
