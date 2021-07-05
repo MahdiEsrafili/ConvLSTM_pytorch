@@ -186,7 +186,8 @@ class ConvLSTM(nn.Module):
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
             # do attention here
-            attention_out = self.bmm5d(layer_output, attention).sum(dim=1)
+            #attention_out = self.bmm5d(layer_output, attention).sum(dim=1)
+            attention_out = layer_output * attention
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
@@ -194,7 +195,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return layer_output_list, last_state_list, attention_out, attention
+        return layer_output_list, last_state_list, attention
     @staticmethod
     def bmm5d(main, multiplier):
         out = torch.zeros_like(main)
