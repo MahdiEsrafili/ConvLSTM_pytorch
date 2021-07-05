@@ -187,7 +187,7 @@ class ConvLSTM(nn.Module):
             cur_layer_input = layer_output
             # do attention here
             #attention_out = self.bmm5d(layer_output, attention).sum(dim=1)
-            attention_out = layer_output * attention
+            layer_output = layer_output * attention
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
