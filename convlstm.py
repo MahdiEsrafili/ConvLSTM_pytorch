@@ -117,8 +117,6 @@ class ConvLSTM(nn.Module):
         self.batch_first = batch_first
         self.bias = bias
         self.return_all_layers = return_all_layers
-        self.attention = nn.Parameter(torch.Tensor(self.seq_len, *hidden_dim, img_size, img_size))
-        self.att_ac = nn.Sigmoid()
         cell_list = []
         for i in range(0, self.num_layers):
             cur_input_dim = self.input_dim if i == 0 else self.hidden_dim[i - 1]
@@ -136,7 +134,7 @@ class ConvLSTM(nn.Module):
         stdv = 1.0 / math.sqrt(self.hidden_dim[0])
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
-    def forward(self, input_tensor, hidden_state=None, attention_in=None):
+    def forward(self, input_tensor, hidden_state=None):
         """
 
         Parameters
@@ -150,10 +148,6 @@ class ConvLSTM(nn.Module):
         -------
         last_state_list, layer_output
         """
-        attention = self.attention
-        if attention_in is not None:
-            attention = attention * attention_in
-            attention = self.att_ac(attention)
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = input_tensor.permute(1, 0, 2, 3, 4)
@@ -185,9 +179,6 @@ class ConvLSTM(nn.Module):
             
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
-            # do attention here
-            #attention_out = self.bmm5d(layer_output, attention).sum(dim=1)
-            layer_output = layer_output * attention
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
 
@@ -195,13 +186,8 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return layer_output_list, last_state_list, attention
-    @staticmethod
-    def bmm5d(main, multiplier):
-        out = torch.zeros_like(main)
-        for l in range(main.shape[0]):
-            out[l] = main[l]*multiplier
-        return out
+        return layer_output_list, last_state_list
+
         
     def _init_hidden(self, batch_size, image_size):
         init_states = []
