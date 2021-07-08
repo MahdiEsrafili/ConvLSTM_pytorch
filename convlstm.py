@@ -206,3 +206,29 @@ class ConvLSTM(nn.Module):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param
+
+class VideoTransformer(nn.Module):
+    def __init__(self,):
+        super(VideoTransformer, self).__init__()
+        self.Wk = nn.Parameter(torch.Tensor(32, 16))
+        self.Wq = nn.Parameter(torch.Tensor(32, 16))
+        self.Wv = nn.Parameter(torch.Tensor(32, 16))
+        self.softmax = nn.Softmax()
+        
+    def init_weights(self):
+        stdv = -0.1
+        for weight in self.parameters():
+            weight.data.uniform_(-stdv, stdv)
+    
+    def forward(self, x_in):
+        attention = []
+        for x in x_in:
+            K = x@self.Wk
+            Q = x@self.Wq
+            V = x@self.Wv
+            score = Q@K.T
+            score = self.softmax(score)
+            a = score@V
+            attention.append(a)
+        attention = torch.stack(attention)
+        return attention
