@@ -214,6 +214,7 @@ class VideoTransformer(nn.Module):
         self.Wq = nn.Parameter(torch.Tensor(32, 16))
         self.Wv = nn.Parameter(torch.Tensor(32, 16))
         self.softmax = nn.Softmax()
+        self.init_weights()
         
     def init_weights(self):
         stdv = -0.1
