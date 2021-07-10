@@ -217,7 +217,7 @@ class VideoTransformer(nn.Module):
         self.init_weights()
         
     def init_weights(self):
-        stdv = -0.1
+        stdv = 1.0
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
     
