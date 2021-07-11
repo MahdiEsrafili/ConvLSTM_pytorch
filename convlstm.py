@@ -208,11 +208,11 @@ class ConvLSTM(nn.Module):
         return param
 
 class VideoTransformer(nn.Module):
-    def __init__(self,):
+    def __init__(self, shape):
         super(VideoTransformer, self).__init__()
-        self.Wk = nn.Parameter(torch.Tensor(32, 16))
-        self.Wq = nn.Parameter(torch.Tensor(32, 16))
-        self.Wv = nn.Parameter(torch.Tensor(32, 16))
+        self.Wk = nn.Parameter(torch.Tensor(*shape))
+        self.Wq = nn.Parameter(torch.Tensor(*shape))
+        self.Wv = nn.Parameter(torch.Tensor(*shape))
         self.softmax = nn.Softmax()
         self.init_weights()
         
