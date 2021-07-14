@@ -208,11 +208,12 @@ class ConvLSTM(nn.Module):
         return param
 
 class VideoTransformer(nn.Module):
-    def __init__(self, att_shape):
+    def __init__(self, att_shape, n_heads=1):
         super(VideoTransformer, self).__init__()
-        self.Wk = nn.Parameter(torch.Tensor(*att_shape))
-        self.Wq = nn.Parameter(torch.Tensor(*att_shape))
-        self.Wv = nn.Parameter(torch.Tensor(*att_shape))
+        self.n_heads = n_heads
+        self.Wk = nn.Parameter(torch.Tensor(att_shape[0], att_shape[1]*n_heads))
+        self.Wq = nn.Parameter(torch.Tensor(att_shape[0], att_shape[1]*n_heads))
+        self.Wv = nn.Parameter(torch.Tensor(att_shape[0], att_shape[1]*n_heads))
         self.softmax = nn.Softmax()
         self.init_weights()
         
@@ -227,9 +228,13 @@ class VideoTransformer(nn.Module):
             K = x@self.Wk
             Q = x@self.Wq
             V = x@self.Wv
-            score = Q@K.T
+            K = K.view(K.size(0), -1, self.n_heads)
+            Q = Q.view(Q.size(0), -1, self.n_heads)
+            V = V.view(V.size(0), -1, self.n_heads)
+            score = Q@K.transpose(1,2)
             score = self.softmax(score)
             a = score@V
+            a = a.view(a.size(0), -1)
             attention.append(a)
         attention = torch.stack(attention)
         return attention
