@@ -208,14 +208,11 @@ class ConvLSTM(nn.Module):
         return param
 
 class VideoTransformer(nn.Module):
-    def __init__(self, input_shape, att_shape):
+    def __init__(self, att_shape):
         super(VideoTransformer, self).__init__()
         self.Wk = nn.Parameter(torch.Tensor(*att_shape))
         self.Wq = nn.Parameter(torch.Tensor(*att_shape))
         self.Wv = nn.Parameter(torch.Tensor(*att_shape))
-        self.k_bias = nn.Parameter(torch.Tensor(input_shape[0], att_shape[1]))
-        self.q_bias = nn.Parameter(torch.Tensor(input_shape[0], att_shape[1]))
-        self.v_bias = nn.Parameter(torch.Tensor(input_shape[0], att_shape[1]))
         self.softmax = nn.Softmax()
         self.init_weights()
         
@@ -227,9 +224,9 @@ class VideoTransformer(nn.Module):
     def forward(self, x_in):
         attention = []
         for x in x_in:
-            K = x@self.Wk + self.k_bias
-            Q = x@self.Wq + self.q_bias
-            V = x@self.Wv + self.v_bias
+            K = x@self.Wk
+            Q = x@self.Wq
+            V = x@self.Wv
             score = Q@K.T
             score = self.softmax(score)
             a = score@V
