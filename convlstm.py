@@ -35,9 +35,23 @@ class ConvLSTMCell(nn.Module):
                               padding=self.padding,
                               bias=self.bias)
         
+        self.conv_enh = nn.Conv2d(in_channels=self.input_dim + self.hidden_dim,
+                              out_channels=2 * self.hidden_dim,
+                              kernel_size=self.kernel_size,
+                              padding=self.padding,
+                              bias=self.bias)
+        
+        self.conv_x = nn.Conv2d(in_channels=self.input_dim,
+                              out_channels=self.hidden_dim,
+                              kernel_size=self.kernel_size,
+                              padding=self.padding,
+                              bias=self.bias)
+        
         self.Wci = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
         self.Wcf = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
         self.Wco = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
+
+        self.group_norm = torch.nn.GroupNorm(4, hidden_dim)
         self.init_weights()
         
     def init_weights(self):
@@ -45,22 +59,33 @@ class ConvLSTMCell(nn.Module):
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
 
-    def forward(self, input_tensor, cur_state):
+    def forward(self, input_tensor, cur_state, h_prev):
         h_cur, c_cur = cur_state # c_cur.shape = (1, hidden_dim, h,w)
         combined = torch.cat([input_tensor, h_cur], dim=1)  # concatenate along channel axis
+        combined_enh = torch.cat([input_tensor, h_prev], dim=1)  # concatenate along channel axis
 
         combined_conv = self.conv(combined)
+        combined_conv_enh = self.conv_enh(combined_enh)
+        conv_x = self.conv_x(input_tensor)
+
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
+        ss_t, ss_p = torch.split(combined_conv_enh, self.hidden_dim, dim=1)
         cc_i = cc_i + self.Wci*c_cur
         cc_f = cc_f + self.Wcf*c_cur
         cc_o = cc_o + self.Wco*c_cur
+
         i = torch.sigmoid(cc_i) # shape = c_cur.shape
         f = torch.sigmoid(cc_f)
         o = torch.sigmoid(cc_o)
         g = torch.tanh(cc_g)
 
+        sp = torch.tanh(ss_p)
+        st = torch.sigmoid(ss_t)
+        stmp = sp*st
+
         c_next = f * c_cur + i * g
-        h_next = o * torch.tanh(c_next)
+        h_next = o * torch.tanh(c_next) + stmp + conv_x
+        h_next = self.group_norm(h_next)
 
         return h_next, c_next
     
@@ -161,6 +186,8 @@ class ConvLSTM(nn.Module):
             # Since the init is done in forward. Can send image size here
             hidden_state = self._init_hidden(batch_size=b,
                                              image_size=(h, w))
+            hidden_state_prev = self._init_hidden(batch_size=b,
+                                             image_size=(h, w))
 
         layer_output_list = []
         last_state_list = []
@@ -171,10 +198,14 @@ class ConvLSTM(nn.Module):
         for layer_idx in range(self.num_layers):
 
             h, c = hidden_state[layer_idx]
+            h_prev = h
+
             output_inner = []
             for t in range(seq_len):
+                h_prev_next = h
                 h, c = self.cell_list[layer_idx](input_tensor=cur_layer_input[:, t, :, :, :],
-                                                 cur_state=[h, c])
+                                                 cur_state=[h, c], h_prev=h_prev)
+                h_prev = h_prev_next
                 output_inner.append(h)
             
             layer_output = torch.stack(output_inner, dim=1)
