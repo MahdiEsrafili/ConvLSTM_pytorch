@@ -51,8 +51,6 @@ class ConvLSTMCell(nn.Module):
         self.Wcf = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
         self.Wco = nn.Parameter(torch.Tensor(1, hidden_dim, img_size, img_size))
 
-        self.Wwh = nn.Parameter(torch.Tensor(3))
-
         self.group_norm = torch.nn.GroupNorm(4, hidden_dim)
         self.init_weights()
         
@@ -86,7 +84,7 @@ class ConvLSTMCell(nn.Module):
         stmp = sp*st
 
         c_next = f * c_cur + i * g
-        h_next = o * torch.tanh(c_next) * self.Wwh[0] + stmp * self.Wwh[1] + conv_x * self.Wwh[2]
+        h_next = o * torch.tanh(c_next)  + stmp  + conv_x 
         h_next = self.group_norm(h_next)
 
         return h_next, c_next
